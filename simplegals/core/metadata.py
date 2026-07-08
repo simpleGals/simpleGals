@@ -23,6 +23,12 @@ class OutputMeta:
 
 
 @dataclass
+class OgMeta:
+    path: str
+    generated_at: str
+
+
+@dataclass
 class ImageSidecar:
     source: str
     mtime: str
@@ -30,6 +36,8 @@ class ImageSidecar:
     settings_hash: str
     thumb: ThumbMeta | None = None
     output: OutputMeta | None = None
+    og: OgMeta | None = None
+    exif: dict | None = None
 
 
 def sidecar_path(meta_dir: Path, source_name: str) -> Path:
@@ -43,6 +51,7 @@ def load_sidecar(meta_dir: Path, source_name: str) -> ImageSidecar | None:
     data = json.loads(p.read_text(encoding="utf-8"))
     thumb = ThumbMeta(**data["thumb"]) if data.get("thumb") else None
     output = OutputMeta(**data["output"]) if data.get("output") else None
+    og = OgMeta(**data["og"]) if data.get("og") else None
     return ImageSidecar(
         source=data["source"],
         mtime=data["mtime"],
@@ -50,6 +59,8 @@ def load_sidecar(meta_dir: Path, source_name: str) -> ImageSidecar | None:
         settings_hash=data["settings_hash"],
         thumb=thumb,
         output=output,
+        og=og,
+        exif=data.get("exif"),
     )
 
 

@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 import pytest
+from PIL import Image
 from simplegals.core.config import ProjectConfig
 from simplegals.core.gallery import (
     SUPPORTED_EXTENSIONS,
@@ -10,6 +11,7 @@ from simplegals.core.gallery import (
     scan_sources,
     validate,
 )
+from simplegals.core.metadata import load_sidecar
 from simplegals.workers.progress import ProgressState
 
 
@@ -116,6 +118,37 @@ def test_build_prunes_removed_sources(tmp_project, test_jpg):
     assert not sidecar.exists(), "sidecar must be pruned"
     assert not (out_dir / "REMOVE_ME.jpg").exists(), "output image must be pruned"
     assert not (meta_dir / "REMOVE_ME_thumb.jpg").exists(), "meta thumb must be pruned"
+
+
+def _proj(tmp_path):
+    in_dir, out_dir, meta = ensure_project_dirs(tmp_path)
+    img = Image.new("RGB", (1200, 800), "white")
+    ex = Image.Exif()
+    from PIL.ExifTags import Base
+    ex[Base.Make.value] = "CANON"; ex[Base.Model.value] = "EOS R5"
+    img.save(in_dir / "shot.jpg", exif=ex)
+    return tmp_path, out_dir, meta
+
+
+def test_build_caches_exif_in_sidecar(tmp_path):
+    proj, out_dir, meta = _proj(tmp_path)
+    build(proj, ProjectConfig(social_previews=True, exif_display=True))
+    sc = load_sidecar(meta, "shot.jpg")
+    assert sc.exif is not None and "CANON" in sc.exif["camera"]
+    assert sc.og is not None and Path(sc.og.path).name == "shot_og.jpg"
+
+
+def test_build_does_not_reextract_exif_when_unchanged(tmp_path, monkeypatch):
+    proj, out_dir, meta = _proj(tmp_path)
+    build(proj, ProjectConfig(social_previews=True, exif_display=True))
+
+    import simplegals.core.gallery as gallery_mod
+    calls = []
+    real = gallery_mod.extract_exif
+    monkeypatch.setattr(gallery_mod, "extract_exif",
+                        lambda src: calls.append(src) or real(src))
+    build(proj, ProjectConfig(social_previews=True, exif_display=True))
+    assert calls == [], "EXIF must not be re-extracted when nothing changed"
 
 
 def test_build_force_rebuilds_all(tmp_project):

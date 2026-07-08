@@ -10,8 +10,10 @@ from pathlib import Path
 import bitmath
 
 from .config import ProjectConfig, settings_hash
+from .exif import extract_exif
 from .metadata import (
     ImageSidecar,
+    OgMeta,
     OutputMeta,
     ThumbMeta,
     check_staleness,
@@ -20,6 +22,7 @@ from .metadata import (
     now_rfc3339,
     save_sidecar,
 )
+from .processor import og_name
 from .template import render_gallery
 from ..workers.pool import dispatch
 from ..workers.progress import ProgressState, drain_queue, format_cli_progress
@@ -85,6 +88,7 @@ def prune_removed_sources(
         (out_dir / name).unlink(missing_ok=True)
         (out_dir / f"{stem}_thumb{ext}").unlink(missing_ok=True)
         (out_dir / f"{stem}_display{ext}").unlink(missing_ok=True)
+        (out_dir / f"{stem}_og{ext}").unlink(missing_ok=True)
         (out_dir / f"{stem}_item.html").unlink(missing_ok=True)
         removed += 1
     return removed
@@ -119,12 +123,14 @@ def build(
 
     thumb_tasks: list[tuple] = []
     output_tasks: list[tuple] = []
+    regenerated: dict[str, bool] = {}
 
     for source in sources:
         if force:
             thumb_stale, output_stale = True, True
         else:
             thumb_stale, output_stale = check_staleness(source, meta_dir, config)
+        regenerated[source.name] = output_stale
         if thumb_stale:
             thumb_tasks.append((str(source), str(meta_dir), None))
         if output_stale:
@@ -132,6 +138,7 @@ def build(
                 "quality": config.quality,
                 "copyright": config.copyright,
                 "template": config.template,
+                "social_previews": config.social_previews,
             }))
 
     log(f"Tasks: {len(thumb_tasks)} thumb, {len(output_tasks)} output")
@@ -187,6 +194,13 @@ def build(
                 generated_at=now_rfc3339(),
             )
             sidecar.settings_hash = s_hash
+        og_path = out_dir / og_name(source)   # mirrors source container (jpg->jpg, png->png)
+        if og_path.exists():
+            sidecar.og = OgMeta(path=str(og_path), generated_at=now_rfc3339())
+        else:
+            sidecar.og = None
+        if sidecar.exif is None or regenerated.get(source.name, False):
+            sidecar.exif = extract_exif(source)
         save_sidecar(meta_dir, sidecar)
 
     raw_records = []
@@ -195,6 +209,8 @@ def build(
         size_str = bitmath.getsize(str(source), bestprefix=True).format("{value:.2f} {unit}")
         mtime_dt = datetime.fromtimestamp(source.stat().st_mtime, tz=timezone.utc)
         display_name = f"{source.stem}_display{source.suffix}"
+        sidecar = load_sidecar(meta_dir, source.name)
+        og_rel = Path(sidecar.og.path).name if sidecar and sidecar.og else None
         raw_records.append({
             "filename": source.name,
             "output_path": source.name,
@@ -206,6 +222,8 @@ def build(
             "date": mtime_dt.strftime("%Y-%m-%d"),
             "size": size_str,
             "item_page": f"{source.stem}_item.html",
+            "og_path": og_rel,
+            "exif": sidecar.exif if sidecar else None,
         })
 
     log("Rendering HTML templates...")
