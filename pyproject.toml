@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "simplegals"
-version = "0.2.0"
+dynamic = ["version"]
 description = "A simple command-line static HTML image gallery generator with a TUI setup utility"
 readme = "README.md"
 license = { text = "MIT" }
@@ -57,6 +57,10 @@ sgui = "simplegals.tui:main"
 
 [project.urls]
 Repository = "https://github.com/timlnx/simpleGals"
+
+[tool.hatch.version]
+path = "VERSION"
+pattern = '(?P<version>.+)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["simplegals"]

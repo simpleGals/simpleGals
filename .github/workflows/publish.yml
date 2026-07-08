@@ -9,6 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Verify tag matches VERSION
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          [ "$TAG" = "$(cat VERSION)" ] || {
+            echo "::error::Release tag '$TAG' does not match VERSION '$(cat VERSION)'. Bump VERSION before tagging."
+            exit 1
+          }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
