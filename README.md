@@ -121,8 +121,11 @@ Settings are saved in JSON format.
 | `description` | `str` | `""` | Gallery description shown below the title |
 | `copyright` | `str` | `""` | Copyright string embedded in JPEG EXIF and the footer |
 | `author` | `str` | `""` | Author name for `<meta name="author">` |
-| `site_url` | `str` | `""` | Absolute base URL (e.g. `https://photos.example.com/summit`) — enables OG/social preview tags |
-| `quality` | `int` | `90` | JPEG output quality (0–100) |
+| `social_previews` | `bool` | `True` | Emit OG/Twitter tags and generate 1200px `_og` previews (in the source container: `_og.jpg` or `_og.png`) |
+| `exif_display` | `bool` | `True` | Show a camera-metadata block on item pages |
+| `gallery_zip` | `bool` | `False` | Generate a downloadable zip of full-size originals |
+| `site_url` | `str` | `""` | Absolute base URL (e.g. `https://photos.example.com/summit`), enables OG/social preview tags |
+| `quality` | `int` | `90` | JPEG output quality (0-100) |
 | `columns` | `int` | `4` | Thumbnail grid columns per page |
 | `rows` | `int` | `5` | Thumbnail grid rows per page |
 | `template` | `str\|None` | `None` | Path to a custom template directory |
@@ -131,32 +134,35 @@ Settings are saved in JSON format.
 
 For each source image `foo.jpg`, the `.meta/` directory contains:
 
-- `foo.jpg.json` — sidecar JSON: records mtime, sha256, settings hash, and paths to generated artifacts
-- `foo_thumb.jpg` — cached thumbnail for the `sgui` preview panel
+- `foo.jpg.json`: sidecar JSON, records mtime, sha256, settings hash, and paths to generated artifacts
+- `foo_thumb.jpg`: cached thumbnail for the `sgui` preview panel
 
 Staleness is determined by mtime first (fast), sha256 second (handles
 touched-but-unchanged files), then a settings hash to detect config changes.
-Artifact existence is also verified — if a sidecar exists but the output files
+Artifact existence is also verified: if a sidecar exists but the output files
 are gone, they are regenerated. On each build, any `.meta/` entries whose source
 image is no longer present in `in/` are pruned, along with their corresponding
 `out/` files.
 
 ## Output image tiers (`/out/`)
 
-simpleGals generates up to three versions of each image:
+simpleGals generates up to four versions of each image:
 
 | File | Max dimensions | Notes |
 |------|---------------|-------|
 | `foo.jpg` | Original size | Full original; linked from individual item pages |
 | `foo_display.jpg` | 2048×2048 px | Only generated when the original exceeds 2 MiB; shown on item pages in place of the full original |
 | `foo_thumb.jpg` | 600×450 px | Used in the thumbnail grid on gallery index pages |
+| `foo_og.jpg` / `foo_og.png` | 1200 px (longest edge) | Social/OG preview image; mirrors the source container; only when `social_previews` is on |
 
 
 # Generated gallery features
 
-The features below are all optional; a generated gallery works with none of
-them configured. Keyboard navigation is always on, and social preview tags
-activate only when `site_url` is set.
+The features below are all optional; a generated gallery works fine with none
+of them configured. Keyboard navigation is always on. Social preview tags,
+camera metadata, and the download button each switch on with their own
+setting, and the social preview's absolute image URL additionally needs
+`site_url` set.
 
 ## Keyboard navigation
 
@@ -171,15 +177,40 @@ The generated HTML pages include keyboard shortcuts:
 
 ## Social / OG preview tags
 
-When `site_url` is set in the gallery config, every generated page emits
+When `social_previews` is on (it is, by default), every generated page emits
 `og:*` and `twitter:*` meta tags. This enables rich link previews when sharing
 URLs on Slack, iMessage, Discord, LinkedIn, and similar platforms. The preview
-image used is the thumbnail for that page.
+image used is a dedicated 1200px `_og` image built just for the job, not the
+grid thumbnail, so shared links show something crisp instead of a squashed
+little square.
 
-`site_url` must be a full absolute URL with no trailing slash, e.g.:
+The tags themselves only need `social_previews`. Getting a full absolute
+image URL in there, so remote services can actually go fetch the image,
+additionally requires `site_url` to be set. `site_url` must be a full
+absolute URL with no trailing slash, e.g.:
 ```
 https://photos.example.com/summit-2026
 ```
+
+## Camera metadata (EXIF)
+
+Turn on `exif_display` (it is on by default) and any item page whose source
+image still carries EXIF data grows a little details block: camera, lens,
+exposure (something like `f/5.6 · ISO 100 · 1/125s`), focal length, flash,
+exposure compensation, white balance, and metering, whichever of those the
+file actually has. Strip the EXIF, or shoot a PNG that never had any, and the
+block just doesn't render. No placeholder text, no empty rows, it simply
+isn't there.
+
+## Gallery download
+
+Flip on `gallery_zip` (it's off by default, zip files can get big) and every
+build packs the full-size originals from `out/` into a single
+`<Slugified_Title>.zip`, stored uncompressed since JPEGs and PNGs are already
+compressed. The index pages and the all-images page each pick up a
+"Download all (`<size>`)" button so a visitor can grab everything in one go
+instead of saving photos one at a time. Rebuilds stay incremental: if the
+images haven't changed since the last build, the zip isn't touched either.
 
 ## Share button
 

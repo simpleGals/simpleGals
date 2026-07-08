@@ -69,7 +69,7 @@ def test_build_writes_build_log(tmp_project):
     log_path, _ = build(tmp_project, config)
     assert log_path.suffix == ".log"
     assert log_path.parent == tmp_project / ".meta"
-    content = log_path.read_text()
+    content = log_path.read_text(encoding="utf-8")
     assert len(content) > 0
 
 
@@ -78,7 +78,7 @@ def test_build_appends_to_jsonl(tmp_project):
     build(tmp_project, config)
     jsonl = tmp_project / ".meta" / "build.jsonl"
     assert jsonl.exists()
-    lines = [l for l in jsonl.read_text().splitlines() if l.strip()]
+    lines = [l for l in jsonl.read_text(encoding="utf-8").splitlines() if l.strip()]
     assert len(lines) >= 1
 
 
@@ -151,6 +151,20 @@ def test_build_does_not_reextract_exif_when_unchanged(tmp_path, monkeypatch):
     assert calls == [], "EXIF must not be re-extracted when nothing changed"
 
 
+def test_build_does_not_reextract_exif_for_no_exif_source(tmp_path, monkeypatch):
+    in_dir, out_dir, meta = ensure_project_dirs(tmp_path)
+    Image.new("RGB", (64, 48), "white").save(in_dir / "plain.png")  # no EXIF
+    build(tmp_path, ProjectConfig(social_previews=True, exif_display=True))
+
+    import simplegals.core.gallery as gallery_mod
+    calls = []
+    real = gallery_mod.extract_exif
+    monkeypatch.setattr(gallery_mod, "extract_exif",
+                        lambda src: calls.append(src) or real(src))
+    build(tmp_path, ProjectConfig(social_previews=True, exif_display=True))
+    assert calls == [], "no-EXIF source must not be re-extracted on an unchanged rebuild"
+
+
 def test_build_produces_zip_when_enabled(tmp_path):
     proj, out_dir, meta = _proj(tmp_path)
     build(proj, ProjectConfig(gallery_zip=True))
@@ -174,10 +188,10 @@ def test_build_force_rebuilds_all(tmp_project):
     build(tmp_project, config)
     # Second build with fresh cache, nothing to do
     log_path, _ = build(tmp_project, config)
-    log = log_path.read_text()
+    log = log_path.read_text(encoding="utf-8")
     assert "Tasks: 0 thumb, 0 output" in log
     # Force build must queue all tasks despite fresh cache
     log_path2, _ = build(tmp_project, config, force=True)
-    log2 = log_path2.read_text()
+    log2 = log_path2.read_text(encoding="utf-8")
     assert "Force rebuild" in log2
     assert "Tasks: 0 thumb, 0 output" not in log2

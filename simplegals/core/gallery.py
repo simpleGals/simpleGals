@@ -203,7 +203,7 @@ def build(
         else:
             sidecar.og = None
         if sidecar.exif is None or regenerated.get(source.name, False):
-            sidecar.exif = extract_exif(source)
+            sidecar.exif = extract_exif(source) or {}
         save_sidecar(meta_dir, sidecar)
 
     raw_records = []
