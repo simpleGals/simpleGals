@@ -134,7 +134,12 @@ For each source image `foo.jpg`, the `.meta/` directory contains:
 - `foo.jpg.json` — sidecar JSON: records mtime, sha256, settings hash, and paths to generated artifacts
 - `foo_thumb.jpg` — cached thumbnail for the `sgui` preview panel
 
-Staleness is determined by mtime first (fast), sha256 second (handles touched-but-unchanged files), then a settings hash to detect config changes. Artifact existence is also verified — if a sidecar exists but the output files are gone, they are regenerated. On each build, any `.meta/` entries whose source image is no longer present in `in/` are pruned, along with their corresponding `out/` files.
+Staleness is determined by mtime first (fast), sha256 second (handles
+touched-but-unchanged files), then a settings hash to detect config changes.
+Artifact existence is also verified — if a sidecar exists but the output files
+are gone, they are regenerated. On each build, any `.meta/` entries whose source
+image is no longer present in `in/` are pruned, along with their corresponding
+`out/` files.
 
 ## Output image tiers (`/out/`)
 
@@ -148,6 +153,10 @@ simpleGals generates up to three versions of each image:
 
 
 # Generated gallery features
+
+The features below are all optional; a generated gallery works with none of
+them configured. Keyboard navigation is always on, and social preview tags
+activate only when `site_url` is set.
 
 ## Keyboard navigation
 
@@ -174,11 +183,9 @@ https://photos.example.com/summit-2026
 
 ## Share button
 
-Each individual item page has a 🔗 button in the image metadata row. Clicking
-it copies a clean shareable URL (query parameters and fragment stripped) to the
-clipboard. Hover over the button to reveal the "copy link to clipboard" label.
-When `site_url` is configured the copied URL uses it as the base; otherwise the
-current page URL is used with params stripped.
+Each individual item page has a 🔗 button in the image metadata row. Clicking it
+copies a clean shareable URL (query parameters and fragment stripped) to the
+clipboard.
 
 
 # Reference Material
