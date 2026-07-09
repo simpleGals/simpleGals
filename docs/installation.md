@@ -19,7 +19,7 @@ pip install simplegals
 ## Local build from source
 
 ```bash
-git clone https://github.com/timlnx/simpleGals.git
+git clone https://github.com/simpleGals/simpleGals.git
 cd simpleGals
 pip install -e ".[dev]"
 ```

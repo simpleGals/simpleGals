@@ -56,7 +56,7 @@ simpleGals = "simplegals.cli:main"
 sgui = "simplegals.tui:main"
 
 [project.urls]
-Repository = "https://github.com/timlnx/simpleGals"
+Repository = "https://github.com/simpleGals/simpleGals"
 
 [tool.hatch.version]
 path = "VERSION"
