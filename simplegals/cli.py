@@ -17,6 +17,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     config_path = Path(args.config) if args.config else None
     result = init_project(Path.cwd(), config_path=config_path)
     print(f"Initialized: {result}")
+    for sub in ("in", "out"):
+        print(f"  created: {Path.cwd() / sub}/")
     return 0
 
 
@@ -44,16 +46,16 @@ def cmd_build(args: argparse.Namespace) -> int:
         print(f"Config not found: {config_path}. Run 'simpleGals init' first.", file=sys.stderr)
         return 1
 
-    _first = [True]
+    _prev_lines = [0]
 
     def _on_progress(state: ProgressState) -> None:
         text = format_cli_progress(state)
-        if _first[0]:
-            sys.stderr.write(text + "\n")
-            _first[0] = False
-        else:
-            sys.stderr.write(f"\x1b[2A\r{text}\n")
+        n = text.count("\n") + 1
+        if _prev_lines[0]:
+            sys.stderr.write(f"\x1b[{_prev_lines[0]}A\r\x1b[J")
+        sys.stderr.write(text + "\n")
         sys.stderr.flush()
+        _prev_lines[0] = n
 
     log_path, had_errors = build(Path.cwd(), config, progress_callback=_on_progress, force=args.force)
 

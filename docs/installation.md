@@ -1,7 +1,7 @@
 # Installation
 
 ```{note}
-Documentation stub — fill in once the package is installable from PyPI.
+Documentation stub. Fill in once the package is installable from PyPI.
 ```
 
 ## Requirements

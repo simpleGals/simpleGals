@@ -4,19 +4,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }} — {{ image.filename }}</title>
+  <title>{{ title }} · {{ image.filename }}</title>
+  {% if social_previews %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ title }}">
-  <meta property="og:title" content="{{ image.caption or image.filename }}">
-  {% if image.caption or description %}<meta property="og:description" content="{{ image.caption or description }}">{% endif %}
-  {% if site_url %}
-  <meta property="og:image" content="{{ site_url }}/{{ image.thumb_path }}">
+  <meta property="og:title" content="{{ title }} · {{ image.filename }}">
+  {% set desc = image.caption or description or title %}
+  <meta property="og:description" content="{{ desc }}">
+  {% if site_url and image.og_path %}
+  <meta property="og:image" content="{{ site_url }}/{{ image.og_path }}">
   <meta property="og:url" content="{{ site_url }}/{{ image.item_page }}">
   {% endif %}
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{{ image.caption or image.filename }}">
-  {% if image.caption or description %}<meta name="twitter:description" content="{{ image.caption or description }}">{% endif %}
-  {% if site_url %}<meta name="twitter:image" content="{{ site_url }}/{{ image.thumb_path }}">{% endif %}
+  <meta name="twitter:title" content="{{ title }} · {{ image.filename }}">
+  <meta name="twitter:description" content="{{ desc }}">
+  {% if site_url and image.og_path %}<meta name="twitter:image" content="{{ site_url }}/{{ image.og_path }}">{% endif %}
+  {% endif %}
   {% if author %}<meta name="author" content="{{ author }}">{% endif %}
   <link rel="stylesheet" href="{{ css_path }}">
 </head>
@@ -34,7 +37,7 @@
       <span>{{ image.filename }}</span>
       <span>{{ image.date }}</span>
       <span>{{ image.size }}</span>
-      <span><a href="{{ image.output_path }}" download>💾</a></span>
+      <span><a href="{{ image.output_path }}" download aria-label="Download full-size image">💾</a></span>
       <span class="share-wrap"><button class="share-btn" id="share-btn" onclick="copyShareUrl()" title="Copy shareable link">🔗</button><span class="share-hint">copy link to clipboard</span></span>
     </div>
 
@@ -51,9 +54,18 @@
       {% endif %}
     </nav>
 
+    {% if exif_display and image.exif %}
+    <dl class="exif">
+      {% set labels = [('camera','Camera'),('lens','Lens'),('exposure','Exposure'),('focal_length','Focal length'),('flash','Flash'),('exposure_comp','Exp. comp'),('white_balance','White balance'),('metering','Metering')] %}
+      {% for key, label in labels %}{% if image.exif.get(key) %}
+      <div class="exif-field"><dt>{{ label }}</dt><dd>{{ image.exif[key] }}</dd></div>
+      {% endif %}{% endfor %}
+    </dl>
+    {% endif %}
+
     <footer>
       {% if copyright %}{{ copyright }}{% endif %}
-      <p class="generated-by"><a href="https://github.com/timlnx/simpleGals" target="_blank" rel="noopener noreferrer">generated with simpleGals</a></p>
+      {% if simple_gals_promo %}<p class="generated-by"><a href="https://github.com/timlnx/simpleGals" target="_blank" rel="noopener noreferrer">generated with simpleGals</a></p>{% endif %}
     </footer>
   </div>
   <div class="key-legend"><kbd>←</kbd> prev · <kbd>→</kbd> next · <kbd>u</kbd> up</div>

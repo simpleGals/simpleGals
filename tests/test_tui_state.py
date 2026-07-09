@@ -65,7 +65,7 @@ def test_get_current_returns_default_when_not_staged():
 def test_dirty_keys_returns_only_changed_keys():
     m = StagedChangesModel()
     m.stage("a.jpg", "caption", "x", "y")   # dirty
-    m.stage("b.jpg", "caption", "z", "z")   # same value — not dirty
+    m.stage("b.jpg", "caption", "z", "z")   # same value, not dirty
     assert m.dirty_keys() == ["a.jpg"]
 
 

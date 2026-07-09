@@ -11,7 +11,7 @@ from .app import SGUIApp
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="sgui",
-        description="simpleGals interactive TUI — browse and edit gallery settings",
+        description="simpleGals interactive TUI: browse and edit gallery settings",
     )
     parser.add_argument("-c", "--config", metavar="PATH", help="Path to simpleGal.json")
     args = parser.parse_args()

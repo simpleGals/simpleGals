@@ -30,6 +30,21 @@ def test_format_cli_progress():
     assert "3/4" in output
 
 
+def test_format_cli_progress_zip_bar():
+    from simplegals.workers.progress import ProgressState, format_cli_progress
+    # No zip phase -> 2 lines, no Zip bar.
+    s = ProgressState(thumb_total=2, thumb_done=2, output_total=2, output_done=2)
+    assert format_cli_progress(s).count("\n") == 1  # 2 lines
+    assert "Zip" not in format_cli_progress(s)
+    # Zip phase active -> 3 lines including a Zip bar, real counts preserved.
+    s.zip_total = 3
+    s.zip_done = 1
+    out = format_cli_progress(s)
+    assert out.count("\n") == 2  # 3 lines
+    assert "Zip" in out
+    assert "2/2" in out  # Previews/Output real counts still shown, not 0/0
+
+
 def test_dispatch_generates_thumbnails(tmp_project):
     meta_dir = tmp_project / ".meta"
     out_dir = tmp_project / "out"

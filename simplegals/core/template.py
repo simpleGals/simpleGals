@@ -37,6 +37,8 @@ def render_gallery(
     config: ProjectConfig,
     raw_records: list[dict],
     template_dir: Path | None = None,
+    gallery_zip: str | None = None,
+    gallery_zip_size: str | None = None,
 ) -> list[Path]:
     """Render all HTML output. Returns list of generated HTML paths."""
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -63,6 +65,11 @@ def render_gallery(
         "columns": config.layout.columns,
         "css_path": "style.css",
         "total_pages": total_pages,
+        "gallery_zip": gallery_zip,
+        "gallery_zip_size": gallery_zip_size,
+        "social_previews": config.social_previews,
+        "exif_display": config.exif_display,
+        "simple_gals_promo": config.simple_gals_promo,
     }
 
     for page_num in range(1, total_pages + 1):

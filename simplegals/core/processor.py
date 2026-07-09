@@ -12,6 +12,7 @@ SGUI_THUMB_MAX: tuple[int, int] = (800, 800)
 HTML_THUMB_MAX: tuple[int, int] = (600, 450)
 DISPLAY_MAX_BYTES: bitmath.MiB = bitmath.MiB(2)
 DISPLAY_MAX_DIM: tuple[int, int] = (2048, 2048)
+OG_MAX_DIM: tuple[int, int] = (1200, 1200)
 
 
 def _thumb_name(source: Path) -> str:
@@ -20,6 +21,10 @@ def _thumb_name(source: Path) -> str:
 
 def _display_name(source: Path) -> str:
     return f"{source.stem}_display{source.suffix}"
+
+
+def og_name(source: Path) -> str:
+    return f"{source.stem}_og{source.suffix}"
 
 
 def generate_sgui_thumb(source: Path, meta_dir: Path) -> Path:
@@ -67,6 +72,19 @@ def generate_output(
                 dk["icc_profile"] = icc
             display_img.save(display_path, **_format_save_kwargs(source, dk))
             del display_img
+
+        if config.social_previews:
+            # The OG preview mirrors the source container: a JPEG source yields
+            # a JPEG _og, a PNG source yields a PNG _og (keeping transparency).
+            # Same save path as the thumb/display, so only container-applicable
+            # options ride along (ICC for both; PNG keeps its alpha).
+            og_img = img.copy()
+            og_img.thumbnail(OG_MAX_DIM, Image.LANCZOS)
+            og_kwargs: dict = {"quality": 80}
+            if icc:
+                og_kwargs["icc_profile"] = icc
+            og_img.save(out_dir / og_name(source), **_format_save_kwargs(source, og_kwargs))
+            del og_img
 
         img.thumbnail(HTML_THUMB_MAX, Image.LANCZOS)
         img.save(thumb_path, **_format_save_kwargs(source, save_kwargs))

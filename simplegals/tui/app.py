@@ -43,7 +43,7 @@ Mode = Literal["file", "image", "gallery", "build"]
 
 
 class SGUIApp:
-    """Main sgui application — owns the urwid main loop and all UI state."""
+    """Main sgui application: owns the urwid main loop and all UI state."""
 
     def __init__(
         self,
@@ -88,7 +88,7 @@ class SGUIApp:
         self._right_panel = RightPanel(self._preview, placeholder)
 
         header = urwid.AttrMap(
-            urwid.Text(f" sgui — {project_dir}", align="left"), "header"
+            urwid.Text(f" sgui: {project_dir}", align="left"), "header"
         )
         footer = urwid.AttrMap(urwid.Text(FOOTER_HINT, align="left"), "footer")
 
@@ -219,7 +219,7 @@ class SGUIApp:
             save_project_config(self._config, self._config_path)
 
     def _on_field_change(self) -> None:
-        """Called by settings panels when a widget value changes — refresh dirty marks."""
+        """Called by settings panels when a widget value changes; refresh dirty marks."""
         self._sync_file_panel_marks()
         if self._loop:
             self._loop.draw_screen()
@@ -416,7 +416,7 @@ class SGUIApp:
         )
         close_btn = urwid.Button("Close", on_press=self._close_overlay)
         body = urwid.Pile([
-            urwid.Text(f"Build error — {self._build_log_path}", align="center"),
+            urwid.Text(f"Build error: {self._build_log_path}", align="center"),
             urwid.Divider(),
             log_box,
             urwid.Divider(),

@@ -5,6 +5,7 @@ import pytest
 from simplegals.core.config import ProjectConfig, settings_hash
 from simplegals.core.metadata import (
     ImageSidecar,
+    OgMeta,
     OutputMeta,
     ThumbMeta,
     check_staleness,
@@ -150,3 +151,23 @@ def test_settings_change_makes_output_stale_not_thumb(tmp_path, test_jpg):
     thumb_stale, output_stale = check_staleness(test_jpg, meta_dir, new_config)
     assert not thumb_stale
     assert output_stale
+
+
+def test_sidecar_roundtrips_og_and_exif(tmp_path):
+    sc = ImageSidecar(
+        source="a.jpg", mtime="t", sha256="h", settings_hash="s",
+        og=OgMeta(path="out/a_og.jpg", generated_at="t"),
+        exif={"camera": "NIKON Z 7", "exposure": "ƒ/5.6 · ISO 100 · 1/125s"},
+    )
+    save_sidecar(tmp_path, sc)
+    loaded = load_sidecar(tmp_path, "a.jpg")
+    assert loaded.og is not None and loaded.og.path == "out/a_og.jpg"
+    assert loaded.exif["camera"] == "NIKON Z 7"
+
+
+def test_sidecar_og_exif_default_none(tmp_path):
+    sc = ImageSidecar(source="b.jpg", mtime="t", sha256="h", settings_hash="s")
+    save_sidecar(tmp_path, sc)
+    loaded = load_sidecar(tmp_path, "b.jpg")
+    assert loaded.og is None
+    assert loaded.exif is None

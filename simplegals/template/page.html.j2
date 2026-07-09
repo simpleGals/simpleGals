@@ -1,16 +1,22 @@
 {# simplegals/template/page.html.j2 #}
+{%- macro download_button() -%}
+  {% if gallery_zip %}
+  <a class="download-btn" href="{{ gallery_zip }}" download>Download all ({{ gallery_zip_size }})</a>
+  {% endif %}
+{%- endmacro -%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title }}{% if not is_all_page and total_pages > 1 %} — Page {{ current_page }} of {{ total_pages }}{% endif %}</title>
+  <title>{{ title }}{% if not is_all_page and total_pages > 1 %} · Page {{ current_page }} of {{ total_pages }}{% endif %}</title>
+  {% if social_previews %}
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="{{ title }}">
-  <meta property="og:title" content="{{ title }}{% if not is_all_page and total_pages > 1 %} — Page {{ current_page }} of {{ total_pages }}{% endif %}">
+  <meta property="og:title" content="{{ title }}{% if not is_all_page and total_pages > 1 %} · Page {{ current_page }} of {{ total_pages }}{% endif %}">
   {% if description %}<meta property="og:description" content="{{ description }}">{% endif %}
-  {% if site_url and images %}
-  <meta property="og:image" content="{{ site_url }}/{{ images[0].thumb_path }}">
+  {% if site_url and images and images[0].og_path %}
+  <meta property="og:image" content="{{ site_url }}/{{ images[0].og_path }}">
   {% endif %}
   {% if site_url %}
   <meta property="og:url" content="{{ site_url }}/{% if is_all_page %}all.html{% elif current_page == 1 %}index.html{% else %}page-{{ current_page }}.html{% endif %}">
@@ -18,7 +24,8 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ title }}">
   {% if description %}<meta name="twitter:description" content="{{ description }}">{% endif %}
-  {% if site_url and images %}<meta name="twitter:image" content="{{ site_url }}/{{ images[0].thumb_path }}">{% endif %}
+  {% if site_url and images and images[0].og_path %}<meta name="twitter:image" content="{{ site_url }}/{{ images[0].og_path }}">{% endif %}
+  {% endif %}
   {% if author %}<meta name="author" content="{{ author }}">{% endif %}
   <link rel="stylesheet" href="{{ css_path }}">
   <style>:root { --columns: {{ columns }}; }</style>
@@ -33,6 +40,10 @@
     {% endif %}
     {% if description %}<p>{{ description }}</p>{% endif %}
   </header>
+
+  {% if is_all_page and gallery_zip %}
+  <nav class="pagination download-row">{{ download_button() }}</nav>
+  {% endif %}
 
   {% if not is_all_page %}
   <nav class="pagination">
@@ -50,6 +61,7 @@
       <a href="page-{{ current_page + 1 }}.html">Next →</a>
     {% endif %}
     <a href="all.html" class="all-link">View all</a>
+    {{ download_button() }}
   </nav>
   {% endif %}
 
@@ -68,7 +80,7 @@
 
   <footer>
     {% if copyright %}{{ copyright }}{% endif %}
-    <p class="generated-by"><a href="https://github.com/timlnx/simpleGals" target="_blank" rel="noopener noreferrer">generated with simpleGals</a></p>
+    {% if simple_gals_promo %}<p class="generated-by"><a href="https://github.com/timlnx/simpleGals" target="_blank" rel="noopener noreferrer">generated with simpleGals</a></p>{% endif %}
   </footer>
   {% if is_all_page %}
   <script>

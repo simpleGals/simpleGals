@@ -68,6 +68,13 @@ def test_init_project_creates_stub(tmp_path):
     assert "title" in data
     assert "quality" in data
     assert "images" in data
+    assert data["simple_gals_promo"] is False
+
+
+def test_init_project_creates_in_and_out_dirs(tmp_path):
+    init_project(tmp_path)
+    assert (tmp_path / "in").is_dir()
+    assert (tmp_path / "out").is_dir()
 
 
 def test_init_project_respects_custom_path(tmp_path):
@@ -87,3 +94,32 @@ def test_init_project_does_not_overwrite_existing(tmp_path):
 def test_load_project_config_missing_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
         load_project_config(tmp_path / "nope.json")
+
+
+def test_new_boolean_defaults():
+    c = ProjectConfig()
+    assert c.social_previews is True
+    assert c.exif_display is True
+    assert c.gallery_zip is False
+
+
+def test_new_booleans_roundtrip(tmp_path):
+    p = tmp_path / "simpleGal.json"
+    save_project_config(ProjectConfig(social_previews=False, exif_display=False, gallery_zip=True), p)
+    loaded = load_project_config(p)
+    assert loaded.social_previews is False
+    assert loaded.exif_display is False
+    assert loaded.gallery_zip is True
+
+
+def test_settings_hash_tracks_social_previews():
+    a = settings_hash(ProjectConfig(social_previews=True))
+    b = settings_hash(ProjectConfig(social_previews=False))
+    assert a != b
+
+
+def test_settings_hash_ignores_display_only_toggles():
+    # exif_display / gallery_zip do not change generated pixels
+    base = settings_hash(ProjectConfig())
+    assert settings_hash(ProjectConfig(exif_display=False)) == base
+    assert settings_hash(ProjectConfig(gallery_zip=True)) == base

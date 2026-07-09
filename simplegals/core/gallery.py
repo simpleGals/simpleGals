@@ -9,9 +9,12 @@ from pathlib import Path
 
 import bitmath
 
+from . import archive
 from .config import ProjectConfig, settings_hash
+from .exif import extract_exif
 from .metadata import (
     ImageSidecar,
+    OgMeta,
     OutputMeta,
     ThumbMeta,
     check_staleness,
@@ -20,6 +23,7 @@ from .metadata import (
     now_rfc3339,
     save_sidecar,
 )
+from .processor import og_name
 from .template import render_gallery
 from ..workers.pool import dispatch
 from ..workers.progress import ProgressState, drain_queue, format_cli_progress
@@ -75,6 +79,8 @@ def prune_removed_sources(
     """
     removed = 0
     for sidecar in meta_dir.glob("*.json"):
+        if sidecar.name == archive.STATE_FILE:
+            continue
         name = sidecar.stem  # e.g. "DSC_8297.jpg" (strip trailing .json)
         if name in source_names:
             continue
@@ -85,6 +91,7 @@ def prune_removed_sources(
         (out_dir / name).unlink(missing_ok=True)
         (out_dir / f"{stem}_thumb{ext}").unlink(missing_ok=True)
         (out_dir / f"{stem}_display{ext}").unlink(missing_ok=True)
+        (out_dir / f"{stem}_og{ext}").unlink(missing_ok=True)
         (out_dir / f"{stem}_item.html").unlink(missing_ok=True)
         removed += 1
     return removed
@@ -115,16 +122,18 @@ def build(
         log(f"Pruned {pruned} removed source(s) from out/ and .meta/")
 
     if force:
-        log("Force rebuild requested — skipping cache.")
+        log("Force rebuild requested. Skipping cache.")
 
     thumb_tasks: list[tuple] = []
     output_tasks: list[tuple] = []
+    regenerated: dict[str, bool] = {}
 
     for source in sources:
         if force:
             thumb_stale, output_stale = True, True
         else:
             thumb_stale, output_stale = check_staleness(source, meta_dir, config)
+        regenerated[source.name] = output_stale
         if thumb_stale:
             thumb_tasks.append((str(source), str(meta_dir), None))
         if output_stale:
@@ -132,17 +141,18 @@ def build(
                 "quality": config.quality,
                 "copyright": config.copyright,
                 "template": config.template,
+                "social_previews": config.social_previews,
             }))
 
     log(f"Tasks: {len(thumb_tasks)} thumb, {len(output_tasks)} output")
 
+    state = ProgressState(
+        thumb_total=len(thumb_tasks),
+        output_total=len(output_tasks),
+    )
     had_errors = False
     if thumb_tasks or output_tasks:
         q: multiprocessing.Queue = multiprocessing.Queue()
-        state = ProgressState(
-            thumb_total=len(thumb_tasks),
-            output_total=len(output_tasks),
-        )
         _done = threading.Event()
 
         def _run_dispatch() -> None:
@@ -187,6 +197,13 @@ def build(
                 generated_at=now_rfc3339(),
             )
             sidecar.settings_hash = s_hash
+        og_path = out_dir / og_name(source)   # mirrors source container (jpg->jpg, png->png)
+        if og_path.exists():
+            sidecar.og = OgMeta(path=str(og_path), generated_at=now_rfc3339())
+        else:
+            sidecar.og = None
+        if sidecar.exif is None or regenerated.get(source.name, False):
+            sidecar.exif = extract_exif(source) or {}
         save_sidecar(meta_dir, sidecar)
 
     raw_records = []
@@ -195,6 +212,8 @@ def build(
         size_str = bitmath.getsize(str(source), bestprefix=True).format("{value:.2f} {unit}")
         mtime_dt = datetime.fromtimestamp(source.stat().st_mtime, tz=timezone.utc)
         display_name = f"{source.stem}_display{source.suffix}"
+        sidecar = load_sidecar(meta_dir, source.name)
+        og_rel = Path(sidecar.og.path).name if sidecar and sidecar.og else None
         raw_records.append({
             "filename": source.name,
             "output_path": source.name,
@@ -206,10 +225,41 @@ def build(
             "date": mtime_dt.strftime("%Y-%m-%d"),
             "size": size_str,
             "item_page": f"{source.stem}_item.html",
+            "og_path": og_rel,
+            "exif": sidecar.exif if sidecar else None,
         })
 
+    gallery_zip_ctx = None
+    gallery_zip_size_ctx = None
+    if config.gallery_zip:
+        included = [r["filename"] for r in raw_records if r.get("include", True)]
+        zip_name = archive.gallery_zip_name(config.title)
+        zip_path = out_dir / zip_name
+        manifest = archive.compute_manifest(out_dir, included)
+        zip_state = archive.load_zip_state(meta_dir)
+        if not (zip_path.exists() and zip_state and zip_state.get("manifest") == manifest):
+
+            def _zcb(done: int, total: int) -> None:
+                state.zip_total = total
+                state.zip_done = done
+                if progress_callback:
+                    progress_callback(state)
+
+            count, size = archive.build_zip(out_dir, included, zip_path, _zcb)
+            archive.save_zip_state(meta_dir, {
+                "manifest": manifest, "zip": zip_name, "size": size, "count": count,
+            })
+            log(f"Zipped {count} images -> {zip_name} ({bitmath.Byte(size).best_prefix().format('{value:.0f} {unit}')})")
+        else:
+            size = zip_state["size"]
+            count = zip_state["count"]
+            log(f"Gallery zip up to date ({zip_name})")
+        gallery_zip_ctx = zip_name
+        gallery_zip_size_ctx = bitmath.Byte(size).best_prefix().format("{value:.0f} {unit}")
+
     log("Rendering HTML templates...")
-    render_gallery(out_dir, config, raw_records)
+    render_gallery(out_dir, config, raw_records,
+                   gallery_zip=gallery_zip_ctx, gallery_zip_size=gallery_zip_size_ctx)
     log("Build complete.")
 
     log_path.write_text("\n".join(log_lines) + "\n", encoding="utf-8")

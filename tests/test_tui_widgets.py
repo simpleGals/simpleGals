@@ -292,6 +292,24 @@ def test_gallery_settings_panel_columns_change_stages_int():
     assert staged.get_current("gallery", "layout_columns", None) == 7
 
 
+def test_gallery_settings_panel_new_booleans_commit(tmp_path):
+    from simplegals.tui.preview_panel import GallerySettingsPanel
+    from simplegals.tui.state import StagedChangesModel
+    from simplegals.core.config import ProjectConfig
+    config = ProjectConfig()  # social_previews=True, exif_display=True, gallery_zip/promo=False
+    staged = StagedChangesModel()
+    panel = GallerySettingsPanel(config, staged, on_save=lambda: None, on_revert=lambda: None)
+    panel.social_previews_check.set_state(False)
+    panel.exif_display_check.set_state(False)
+    panel.gallery_zip_check.set_state(True)
+    panel.simple_gals_promo_check.set_state(True)
+    new_config = staged.commit_key("gallery", config, tmp_path / "simpleGal.json")
+    assert new_config.social_previews is False
+    assert new_config.exif_display is False
+    assert new_config.gallery_zip is True
+    assert new_config.simple_gals_promo is True
+
+
 def test_gallery_settings_panel_quality_invalid_int_ignored():
     from simplegals.core.config import ProjectConfig
     from simplegals.tui.preview_panel import GallerySettingsPanel
