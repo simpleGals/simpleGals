@@ -43,6 +43,10 @@ dev = [
     "pytest-cov",
     "build",
     "twine",
+    "pylint",
+    "pycodestyle",
+    "bandit",
+    "pip-audit",
 ]
 docs = [
     "sphinx",
@@ -64,3 +68,32 @@ pattern = '(?P<version>.+)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["simplegals"]
+
+[tool.pylint.main]
+py-version = "3.10"
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.messages_control]
+# Fix-first is the rule (see CLAUDE.md); these are the documented exceptions
+# where a clean fix would be unreasonable. Everything else is fixed in code.
+disable = [
+    # Trivial helpers, __init__, and urwid widget methods; the meaningful
+    # public functions are documented. Module and class docstrings are kept.
+    "missing-function-docstring",
+    # Complexity thresholds on the build pipeline and TUI widgets: these
+    # aggregate related state and read linearly. Refactoring purely to satisfy
+    # the counts adds regression risk to tested code without fixing a defect.
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "too-many-statements",
+    "too-many-branches",
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-few-public-methods",
+    # Intentional patterns kept on purpose:
+    "broad-exception-caught",     # workers/TUI degrade gracefully on any failure
+    "protected-access",           # urwid framework integration
+    "invalid-overridden-method",  # urwid's selectable() API
+]
