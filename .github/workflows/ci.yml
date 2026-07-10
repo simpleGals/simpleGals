@@ -18,7 +18,7 @@ jobs:
       - name: Install package and dev dependencies
         run: pip install -e ".[dev]"
       - name: Run tests
-        run: pytest tests/ --cov=simplegals --cov-report=term-missing
+        run: pytest -v --cov=simplegals --cov-report term-missing --cov-report term:skip-covered --cov-report xml:coverage.xml tests
 
   docs:
     runs-on: ubuntu-latest
@@ -31,3 +31,18 @@ jobs:
         run: pip install -e ".[docs]"
       - name: Build docs
         run: cd docs && make html
+
+  lint:
+    runs-on: ubuntu-latest
+    continue-on-error: true  # advisory for now; flip to a hard gate in a follow-up
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install package and dev dependencies
+        run: pip install -e ".[dev]"
+      - name: pycodestyle
+        run: pycodestyle --max-line-length=120 simplegals/ tests/
+      - name: pylint
+        run: pylint simplegals/

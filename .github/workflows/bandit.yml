@@ -1,0 +1,45 @@
+---
+name: Bandit Security Scan
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 0 * * 0"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Bandit
+        run: pip install "bandit[sarif]"
+
+      - name: Run Bandit (SARIF)
+        # simplegals/ only: tests use pytest assert and subprocess by design, so
+        # scanning tests/ would be pure noise. continue-on-error keeps the SARIF
+        # upload running even when findings set a non-zero exit.
+        run: bandit -r simplegals/ --format sarif --output bandit-results.sarif
+        continue-on-error: true
+
+      - name: Upload SARIF to code scanning
+        # Manual bandit + upload-sarif keeps us on CodeQL Action v4; the
+        # PyCQA/bandit-action still bundles the deprecated upload-sarif@v3.
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4
+        with:
+          sarif_file: bandit-results.sarif
