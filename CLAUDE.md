@@ -17,6 +17,28 @@ Both commands operate in the current working directory, auto-creating `in/` (inp
 - [`term-image`](https://github.com/AnonymouX47/term-image) for terminal image rendering (requires Kitty graphics protocol, iTerm2 inline image protocol, or Unicode truecolor support)
 - [`bitmath`](https://pypi.org/project/bitmath/) >= 2.0.0 for file size display and comparisons (use NIST prefixes: MiB not MB)
 
+## Code Style and Linting
+
+Code must pass `make lint` (pycodestyle + pylint) and `make security` (bandit +
+pip-audit) before commit. The `lint` job in CI is currently advisory; treat it as
+a gate anyway. simpleGals ships with **zero inline suppressions** — write code that
+passes cleanly rather than silencing checks.
+
+Conventions (enforced by pylint/pycodestyle, so follow them up front):
+- **Max line length is 120 characters** (pylint `max-line-length`, pycodestyle `--max-line-length=120`).
+- **Do not shadow Python builtins** with parameter or variable names (e.g. `copyright`, `id`, `type`, `format`). Bind the value to a descriptive name like `copyright_text`.
+- **No mutable default arguments** (`def f(x=set())` / `[]` / `{}`). Default to `None` and normalize inside: `x = x or set()`.
+- **Imports go at module top** — no imports inside functions.
+- **Prefer non-deprecated APIs** — e.g. `Image.Resampling.LANCZOS`, not `Image.LANCZOS`.
+- **Every module and class has a docstring.** Function docstrings are not required (the check is disabled), but public functions should still carry one; the important ones do.
+- **Catch specific exceptions where practical.** Broad `except Exception` is allowed only in the worker/TUI code that must degrade gracefully (it is a documented pylint disable); do not add new broad catches elsewhere.
+- Tests use `assert` and `subprocess` freely — bandit is scoped to `simplegals/` only, so those are not flagged.
+
+Prefer fixing a lint finding over suppressing it. Do not add `# pylint: disable`,
+`# noqa`, or `# nosec` comments, and do not extend the pylint `disable` list in
+`pyproject.toml`, without explicit sign-off. The existing `[tool.pylint.messages_control]`
+disables are the audited set of exceptions, each with a one-line reason.
+
 ## Architecture
 
 - **`sgui`**: TUI with a split layout: scrollable file tree (left, ~20% width) and settings/preview panel (right). Navigation via arrow keys and Tab to switch focus. Ctrl+G opens gallery settings; Escape returns to file selection mode.
