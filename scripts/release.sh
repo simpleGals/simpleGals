@@ -8,7 +8,7 @@
 # Shows what is already published, asks you for the next version, then does the
 # mechanical parts in the one order that publish.yml accepts:
 #
-#   VERSION written -> committed -> pushed -> tag signed on THAT commit -> tag pushed
+#   VERSION written -> committed -> tag signed on THAT commit -> commit and tag pushed
 #
 # publish.yml checks out the *tag* and compares the tag name to `cat VERSION`.
 # If the bump is not in the commit the tag points at, the release fails. That is
@@ -26,6 +26,30 @@ PKG="simplegals"
 BRANCH="main"
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+usage() {
+    cat <<'USAGE'
+Usage: scripts/release.sh [-h|--help]
+
+Cuts a simpleGals release in the one order publish.yml accepts:
+
+  VERSION written -> committed -> tag signed on that commit -> both pushed
+
+Prompts for the next version and a one-line release message, builds the
+artifacts, shows you exactly what will be pushed, and asks before pushing
+anything. Stops after the tag and prints the `gh release create` command,
+which is what actually triggers the PyPI upload.
+
+Nothing is pushed until you answer the "Proceed?" prompt. Any exit before
+that point restores VERSION.
+USAGE
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    "") ;;
+    *) printf 'unknown argument: %s\n\n' "$1" >&2; usage >&2; exit 2 ;;
+esac
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 info() { printf '  %s\n' "$*"; }
@@ -86,6 +110,15 @@ echo
 
 # ---------------------------------------------------------------- gpg warm-up
 
+# gpg needs a tty to drive pinentry-curses. Without GPG_TTY it dies with
+# "Inappropriate ioctl for device" - at the tag step, after the branch has
+# already been pushed. Set it here, once, for both the probe and the real
+# signature.
+if [ -z "${GPG_TTY:-}" ] && tty_dev="$(tty 2>/dev/null)"; then
+    export GPG_TTY="$tty_dev"
+fi
+gpg-connect-agent updatestartuptty /bye >/dev/null 2>&1 || true
+
 # `gpg-agent is running` says nothing about whether the key is cached. Actually
 # sign a byte and see. --pinentry-mode error makes it fail instead of prompting,
 # which is exactly the signal we want: fail here means you get asked later.
@@ -131,13 +164,25 @@ echo
 
 # Any exit between writing VERSION and committing it - build failure, Ctrl-C,
 # EOF on a prompt, answering no - has to put the file back.
+#
+# Once the commit exists but before anything is pushed there is a second thing
+# to undo: the commit itself. Leaving it behind makes the next run die on
+# "diverged from origin", which is a confusing way to report "the tag step
+# failed". Only ever unwind a commit this run created.
 version_written=0
 committed=0
+pushed=0
+head_before=""
 cleanup() {
     local rc=$?
     if [ "$version_written" -eq 1 ] && [ "$committed" -eq 0 ]; then
         git checkout -- VERSION 2>/dev/null || true
         warn "VERSION restored to $version_now, nothing committed"
+    fi
+    if [ "$committed" -eq 1 ] && [ "$pushed" -eq 0 ] && [ -n "$head_before" ]; then
+        git tag -d "$version_new" >/dev/null 2>&1 || true
+        git reset --hard "$head_before" >/dev/null 2>&1 || true
+        warn "rolled back to $(git rev-parse --short "$head_before"), nothing pushed"
     fi
     exit "$rc"
 }
@@ -184,17 +229,24 @@ echo
 # ---------------------------------------------------------------- commit, tag
 
 if ! git diff --quiet -- VERSION; then
+    head_before="$(git rev-parse HEAD)"
     git add VERSION
     git commit -m "release: bump VERSION to $version_new"
+    committed=1
 fi
-committed=1
 
-git push origin "$BRANCH"
-
+# Sign first, push second. Signing is the step that can still fail (locked key,
+# no tty, wrong passphrase) and it is purely local, so a failure here leaves the
+# remote untouched instead of stranding a pushed commit that no tag points at.
+#
 # Bare version as the tag message, matching 0.1.2 through 0.4.0. The prose goes
 # in the release body, not here.
-git tag -s "$version_new" -m "$version_new"
+git tag -s "$version_new" -m "$version_new" \
+    || die "tag signing failed; nothing was pushed. Fix gpg, then re-run."
+
+git push origin "$BRANCH"
 git push origin "$version_new"
+pushed=1
 
 echo
 bold "Tag $version_new pushed and signed."
