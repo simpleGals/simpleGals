@@ -1,3 +1,4 @@
+import re
 import shutil
 from pathlib import Path
 import pytest
@@ -373,3 +374,34 @@ def test_zero_images_renders_without_crash(tmp_path):
     render_gallery(out, ProjectConfig(template=str(tpl)), _make_records(out, []))
     assert (out / "index.html").exists()
     assert "total=0" in (out / "index.html").read_text(encoding="utf-8")
+
+
+def test_item_nav_filename_is_wrapped_for_truncation(tmp_path):
+    """The prev/next filename sits in its own span so CSS can ellipse it."""
+    out_dir = tmp_path / "out"
+    long_name = "2026-09-06_Sept_Weekend_Shooting_Pillars_Focus_Stack_Attempt_Three.jpg"
+    names = [long_name, "b.jpg", "c.jpg"]
+    _make_output_images(out_dir, names)
+    config = ProjectConfig(layout=Layout(columns=2, rows=10))
+    render_gallery(out_dir, config, _make_records(out_dir, names))
+    item_html = (out_dir / "b_item.html").read_text(encoding="utf-8")
+
+    nav = item_html.split('<nav class="item-nav">')[1].split("</nav>")[0]
+    assert f'<span class="nav-name">{long_name}</span>' in nav
+    assert '<span class="nav-name">c.jpg</span>' in nav
+
+
+def test_item_nav_arrows_are_outside_the_truncating_span(tmp_path):
+    """An arrow inside the truncating span would be eaten by the ellipsis."""
+    out_dir = tmp_path / "out"
+    names = ["a.jpg", "b.jpg", "c.jpg"]
+    _make_output_images(out_dir, names)
+    config = ProjectConfig(layout=Layout(columns=2, rows=10))
+    render_gallery(out_dir, config, _make_records(out_dir, names))
+    nav = (out_dir / "b_item.html").read_text(encoding="utf-8")
+    nav = nav.split('<nav class="item-nav">')[1].split("</nav>")[0]
+
+    for arrow in ("←", "→"):
+        assert f'<span class="nav-arrow">{arrow}</span>' in nav
+    for name_span in re.findall(r'<span class="nav-name">(.*?)</span>', nav):
+        assert "←" not in name_span and "→" not in name_span

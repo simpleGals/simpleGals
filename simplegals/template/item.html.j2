@@ -47,12 +47,12 @@
 
     <nav class="item-nav">
       {% if prev_image %}
-        <a href="{{ prev_image.item_page }}">← {{ prev_image.filename }}</a>
+        <a href="{{ prev_image.item_page }}"><span class="nav-arrow">←</span><span class="nav-name">{{ prev_image.filename }}</span></a>
       {% else %}
         <span></span>
       {% endif %}
       {% if next_image %}
-        <a href="{{ next_image.item_page }}">{{ next_image.filename }} →</a>
+        <a href="{{ next_image.item_page }}"><span class="nav-name">{{ next_image.filename }}</span><span class="nav-arrow">→</span></a>
       {% endif %}
     </nav>
 

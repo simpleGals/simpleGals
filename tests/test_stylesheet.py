@@ -193,3 +193,44 @@ def test_media_overrides_come_after_their_base_rules(sheet):
                         f"base rule for that selector is declared later and wins. Move the media "
                         f"block below it."
                     )
+
+
+@pytest.mark.parametrize("sheet", STYLESHEETS, ids=lambda p: p.name)
+def test_ellipsis_rules_are_not_inert(sheet):
+    """``text-overflow: ellipsis`` does nothing without overflow and nowrap."""
+    css = _strip_comments(sheet.read_text(encoding="utf-8"))
+    for _offset, selector, body in _rules(css):
+        if not re.search(r"text-overflow\s*:\s*ellipsis", body):
+            continue
+        assert re.search(r"(?<![-\w])overflow\s*:\s*hidden", body), (
+            f"{sheet.name}: '{selector}' sets text-overflow: ellipsis without overflow: hidden"
+        )
+        assert re.search(r"white-space\s*:\s*nowrap", body), (
+            f"{sheet.name}: '{selector}' sets text-overflow: ellipsis without white-space: nowrap"
+        )
+
+
+@pytest.mark.parametrize("sheet", STYLESHEETS, ids=lambda p: p.name)
+def test_item_nav_filenames_truncate(sheet):
+    """Long filenames must ellipse rather than blow the prev/next buttons apart."""
+    css = _strip_comments(sheet.read_text(encoding="utf-8"))
+    if "item-nav" not in css:
+        pytest.skip(f"{sheet.name} does not style the item nav")
+    bodies = {selector: body for _offset, selector, body in _rules(css)}
+
+    name_rule = next((b for s, b in bodies.items() if ".nav-name" in s and "item-nav" in s), None)
+    assert name_rule is not None, f"{sheet.name}: no truncation rule for the item-nav filename"
+    assert re.search(r"text-overflow\s*:\s*ellipsis", name_rule), (
+        f"{sheet.name}: the item-nav filename does not truncate with an ellipsis"
+    )
+
+    link_rule = next((b for s, b in bodies.items() if re.fullmatch(r"nav\.item-nav a", s.strip())), None)
+    assert link_rule is not None, f"{sheet.name}: no 'nav.item-nav a' rule"
+    assert re.search(r"min-width\s*:\s*0", link_rule), (
+        f"{sheet.name}: 'nav.item-nav a' needs min-width: 0, otherwise it will not shrink below the "
+        "filename width and the ellipsis inside it never engages"
+    )
+    assert re.search(r"display\s*:\s*(inline-)?flex", link_rule), (
+        f"{sheet.name}: 'nav.item-nav a' must be a flex container so the arrow can sit outside the "
+        "truncating span"
+    )
