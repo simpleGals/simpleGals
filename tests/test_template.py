@@ -405,3 +405,41 @@ def test_item_nav_arrows_are_outside_the_truncating_span(tmp_path):
         assert f'<span class="nav-arrow">{arrow}</span>' in nav
     for name_span in re.findall(r'<span class="nav-name">(.*?)</span>', nav):
         assert "←" not in name_span and "→" not in name_span
+
+
+def test_pagination_repeated_below_the_grid(tmp_path):
+    """Issue #15: the page links must also appear after the grid."""
+    out_dir = tmp_path / "out"
+    names = [f"img{i}.jpg" for i in range(6)]
+    _make_output_images(out_dir, names)
+    config = ProjectConfig(layout=Layout(columns=2, rows=2))
+    render_gallery(out_dir, config, _make_records(out_dir, names))
+    html = (out_dir / "index.html").read_text(encoding="utf-8")
+    grid_end = html.index("</div>", html.index('class="gallery-grid"'))
+    before, after = html[:grid_end], html[grid_end:]
+    assert 'class="pagination"' in before
+    assert "pagination-bottom" in after
+    assert "Next →" in after
+    assert "View all" in after
+
+
+def test_top_and_bottom_pagination_are_identical(tmp_path):
+    """Both rows come from one macro, so 'View all' and the download button match."""
+    out_dir = tmp_path / "out"
+    names = [f"img{i}.jpg" for i in range(6)]
+    _make_output_images(out_dir, names)
+    config = ProjectConfig(layout=Layout(columns=2, rows=2))
+    render_gallery(out_dir, config, _make_records(out_dir, names))
+    html = (out_dir / "index.html").read_text(encoding="utf-8")
+    navs = re.findall(r'<nav class="pagination[^"]*">(.*?)</nav>', html, re.S)
+    assert len(navs) == 2
+    assert navs[0] == navs[1]
+
+
+def test_all_page_bottom_row_only_when_zip_enabled(tmp_path):
+    out_dir = tmp_path / "out"
+    names = ["a.jpg", "b.jpg"]
+    _make_output_images(out_dir, names)
+    config = ProjectConfig(layout=Layout(columns=2, rows=10))
+    render_gallery(out_dir, config, _make_records(out_dir, names))
+    assert "pagination" not in (out_dir / "all.html").read_text(encoding="utf-8")
