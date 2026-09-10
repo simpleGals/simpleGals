@@ -183,3 +183,10 @@ footer { margin-top: 2rem; color: #555; font-size: 0.75rem; }
 .exif .exif-field { margin: 0; }
 .exif dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
 .exif dd { margin: 0; font-size: 0.85rem; color: #ccc; }
+
+/* The legend advertises keyboard shortcuts, which a touch device does not have.
+   It is position:fixed and therefore out of flow, so on narrow screens the
+   wrapped <h1> collides with it. Hide it where the keys are unusable anyway. */
+@media (hover: none), (pointer: coarse) {
+  .key-legend { display: none; }
+}
