@@ -37,7 +37,10 @@ nav.pagination .all-link { margin-left: auto; }
 
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(var(--columns, 4), 1fr);
+  /* minmax(0, 1fr) severs the implicit auto minimum on each track. Without it a
+     long nowrap caption or a wide thumbnail floors the track at its min-content
+     width and the grid overflows the viewport. See issue #12. */
+  grid-template-columns: repeat(var(--columns, 4), minmax(0, 1fr));
   gap: 0.75rem;
 }
 
@@ -66,6 +69,18 @@ nav.pagination .all-link { margin-left: auto; }
   white-space: nowrap;
 }
 
+/* The configured column count is a desktop maximum, not an absolute. Cap it on
+   narrow viewports so thumbnails stay large enough to be useful. */
+@media (max-width: 700px) {
+  .gallery-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 420px) {
+  .gallery-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  /* A fixed 200px crop looks wrong once a thumbnail spans the full width. */
+  .gallery-item img { height: auto; aspect-ratio: 4 / 3; }
+}
+
 .item-page { max-width: 900px; margin: 0 auto; }
 
 .item-page img {
@@ -82,7 +97,9 @@ nav.pagination .all-link { margin-left: auto; }
   margin-bottom: 1rem;
 }
 
-.item-meta span { margin-right: 1.5rem; }
+/* A long filename is one unbreakable token, so it needs an explicit break
+   opportunity or it overflows the viewport on a phone. */
+.item-meta span { margin-right: 1.5rem; overflow-wrap: anywhere; }
 
 .share-wrap { display: inline-flex; align-items: center; gap: 0.4rem; }
 .share-btn { background: none; border: none; cursor: pointer; padding: 0; font-size: inherit; color: inherit; }
@@ -92,15 +109,34 @@ nav.pagination .all-link { margin-left: auto; }
 nav.item-nav {
   display: flex;
   justify-content: space-between;
+  gap: 0.5rem;
   margin-top: 1rem;
 }
 
 nav.item-nav a {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  /* min-width: 0 lets the flex item shrink below the filename width, which is
+     what allows the ellipsis inside it to engage. max-width keeps one long
+     filename from crowding the other button off the row. */
+  min-width: 0;
+  max-width: 48%;
   padding: 0.4rem 1rem;
   border: 1px solid #444;
   border-radius: 4px;
   text-decoration: none;
   color: #eee;
+}
+
+/* The arrow stays outside the truncating span so the ellipsis never eats it. */
+nav.item-nav .nav-arrow { flex: none; }
+
+nav.item-nav .nav-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 nav.item-nav a:hover { background: #333; }
@@ -147,3 +183,10 @@ footer { margin-top: 2rem; color: #555; font-size: 0.75rem; }
 .exif .exif-field { margin: 0; }
 .exif dt { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .04em; color: #666; }
 .exif dd { margin: 0; font-size: 0.85rem; color: #ccc; }
+
+/* The legend advertises keyboard shortcuts, which a touch device does not have.
+   It is position:fixed and therefore out of flow, so on narrow screens the
+   wrapped <h1> collides with it. Hide it where the keys are unusable anyway. */
+@media (hover: none), (pointer: coarse) {
+  .key-legend { display: none; }
+}
