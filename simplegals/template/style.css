@@ -35,6 +35,10 @@ nav.pagination a:hover { background: #333; }
 nav.pagination .current { background: #555; border-color: #777; }
 nav.pagination .all-link { margin-left: auto; }
 
+/* Bottom pagination: duplicated below the grid so the next page stays
+   discoverable after scrolling on narrow screens. See issue #15. */
+nav.pagination.pagination-bottom { margin-top: 1.5rem; margin-bottom: 0; }
+
 .gallery-grid {
   display: grid;
   /* minmax(0, 1fr) severs the implicit auto minimum on each track. Without it a

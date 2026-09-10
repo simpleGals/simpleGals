@@ -4,6 +4,31 @@
   <a class="download-btn" href="{{ gallery_zip }}" download>Download all ({{ gallery_zip_size }})</a>
   {% endif %}
 {%- endmacro -%}
+{%- macro pagination_nav(position) -%}
+  {% if is_all_page %}
+    {% if gallery_zip %}
+  <nav class="pagination download-row{% if position == 'bottom' %} pagination-bottom{% endif %}">{{ download_button() }}</nav>
+    {% endif %}
+  {% else %}
+  <nav class="pagination{% if position == 'bottom' %} pagination-bottom{% endif %}">
+    {% if current_page > 1 %}
+      <a href="{% if current_page == 2 %}index.html{% else %}page-{{ current_page - 1 }}.html{% endif %}">← Prev</a>
+    {% endif %}
+    {% for n in range(1, total_pages + 1) %}
+      {% if n == current_page %}
+        <span class="current">{{ n }}</span>
+      {% else %}
+        <a href="{% if n == 1 %}index.html{% else %}page-{{ n }}.html{% endif %}">{{ n }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if current_page < total_pages %}
+      <a href="page-{{ current_page + 1 }}.html">Next →</a>
+    {% endif %}
+    <a href="all.html" class="all-link">View all</a>
+    {{ download_button() }}
+  </nav>
+  {% endif %}
+{%- endmacro -%}
 <!DOCTYPE html>
 <!-- Generated with simpleGals {{ version }} | {{ project_url }} -->
 <html lang="en">
@@ -43,29 +68,7 @@
     {% if description %}<p>{{ description }}</p>{% endif %}
   </header>
 
-  {% if is_all_page and gallery_zip %}
-  <nav class="pagination download-row">{{ download_button() }}</nav>
-  {% endif %}
-
-  {% if not is_all_page %}
-  <nav class="pagination">
-    {% if current_page > 1 %}
-      <a href="{% if current_page == 2 %}index.html{% else %}page-{{ current_page - 1 }}.html{% endif %}">← Prev</a>
-    {% endif %}
-    {% for n in range(1, total_pages + 1) %}
-      {% if n == current_page %}
-        <span class="current">{{ n }}</span>
-      {% else %}
-        <a href="{% if n == 1 %}index.html{% else %}page-{{ n }}.html{% endif %}">{{ n }}</a>
-      {% endif %}
-    {% endfor %}
-    {% if current_page < total_pages %}
-      <a href="page-{{ current_page + 1 }}.html">Next →</a>
-    {% endif %}
-    <a href="all.html" class="all-link">View all</a>
-    {{ download_button() }}
-  </nav>
-  {% endif %}
+  {{ pagination_nav('top') }}
 
   <div class="gallery-grid">
     {% for image in images %}
@@ -79,6 +82,8 @@
     </div>
     {% endfor %}
   </div>
+
+  {{ pagination_nav('bottom') }}
 
   <footer>
     {% if copyright %}{{ copyright }}{% endif %}
